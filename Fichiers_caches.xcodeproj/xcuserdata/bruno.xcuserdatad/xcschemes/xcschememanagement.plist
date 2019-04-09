@@ -9,6 +9,11 @@
 			<key>orderHint</key>
 			<integer>0</integer>
 		</dict>
+		<key>Fichiers_caches_Finder_ext.xcscheme</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>1</integer>
+		</dict>
 	</dict>
 	<key>SuppressBuildableAutocreation</key>
 	<dict>
@@ -23,6 +28,11 @@
 			<true/>
 		</dict>
 		<key>15ABC137225C12B5005F99BE</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>15ABC14D225C2408005F99BE</key>
 		<dict>
 			<key>primary</key>
 			<true/>

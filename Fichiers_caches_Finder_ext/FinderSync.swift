@@ -8,6 +8,7 @@
 
 import Cocoa
 import FinderSync
+import CoreFoundation // Process
 
 class FinderSync: FIFinderSync {
 
@@ -52,21 +53,21 @@ class FinderSync: FIFinderSync {
     // MARK: - Menu and toolbar item support
     
     override var toolbarItemName: String {
-        return "FinderSy"
+        return "Fichiers cachés"
     }
     
     override var toolbarItemToolTip: String {
-        return "FinderSy: Click the toolbar item for a menu."
+        return "Fichiers cachés: Affichez ou cachez les fichiers cachés."
     }
     
     override var toolbarItemImage: NSImage {
-        return NSImage(named: NSImageNameCaution)!
+        return NSImage(named: NSImageNameRevealFreestandingTemplate)! //NSImageNameCaution
     }
     
     override func menu(for menuKind: FIMenuKind) -> NSMenu {
         // Produce a menu for the extension.
         let menu = NSMenu(title: "")
-        menu.addItem(withTitle: "Example Menu Item", action: #selector(sampleAction(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: "Afficher/Cacher les fichiers cachés", action: #selector(sampleAction(_:)), keyEquivalent: "")
         return menu
     }
     
@@ -79,7 +80,137 @@ class FinderSync: FIFinderSync {
         for obj in items! {
             NSLog("    %@", obj.path as NSString)
         }
+        let username = NSUserName()
+        print("Nom de l'utilisateur \(username)")
+        
+        run(fileName: "Affiche_Cache_les_fichiers_caches")
+        
+        //print(litFichiersCaches())
+    }
+    
+    // ATTENTION !
+    // En tant qu'utilisateur, dans le terminal, on tape : /usr/bin/defaults read com.apple.finder AppleShowAllFiles
+    // Mais nous ne sommes pas dans le contexte utilisateur; donc il faut :
+    // 1. Récupérer le nom de l'utilisateur en cours
+    // 2. Indiquer le chemin absolu du fichier à lire (ou écrire)
+    // defaults read /Users/bruno/Library/Preferences/com.apple.finder.plist AppleShowAllFiles
+    // defaults write /Users/bruno/Library/Preferences/com.apple.finder.plist AppleShowAllFiles TRUE
+    
+    func litFichiersCaches() -> String {
+        
+        // let cheminAbsoluPreferencesFinder = "/Users/" + NSUserName() + "/Library/Preferences/com.apple.finder.plist"
+        let cheminAbsoluPreferencesFinder = "/Users/" + NSUserName() + "/Library/Containers/fr.binfoservice.Fichiers-caches.Fichiers-caches-Finder-ext/Data/Library/Preferences/com.apple.finder.plist"
+        // /Users/bruno/Library/Containers/fr.binfoservice.Fichiers-caches.Fichiers-caches-Finder-ext/Data/Library/Preferences
+        
+        let task            = Process()
+        task.launchPath     = "/usr/bin/defaults" //"/usr/bin/defaults read com.apple.finder AppleShowAllFiles"
+        task.arguments      = ["read", cheminAbsoluPreferencesFinder, "AppleShowAllFiles"]
+        // On veut récupérer la sortie standard et la sortie erreur
+        let outputPipe      = Pipe()
+        let errorPipe       = Pipe()
+        task.standardOutput = outputPipe
+        task.standardError  = errorPipe
+        // Démarrage de la tâche
+        task.launch()
+        // Récupération de la sortie standard et de la sortie erreur
+        let outputData      = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        let errorData       = errorPipe.fileHandleForReading.readDataToEndOfFile()
+        // On transforme l'objet data en String
+        if let output = String(data: outputData, encoding: String.Encoding.utf8) {
+            if (output != "") {
+                // Suppression du caractère "\n" situé à la fin de output
+                return output.substring(to: output.index(before: output.endIndex)) // Swift 4.0 : output.remove(at: output.index(before: output.endIndex))
+            }
+            
+        }
+        if let erreur = String(data: errorData, encoding: String.Encoding.utf8) {
+            if (erreur != "") {
+                // Suppression du caractère "\n" situé à la fin de output
+                return erreur // erreur.substring(to: output.index(before: output.endIndex)) // Swift 4.0 : output.remove(at: output.index(before: output.endIndex))
+            }
+            
+        }
+        return ""
+    }
+    
+    // MARK: - Script
+    func run(fileName: String) {
+        guard let targetedUrl = FIFinderSyncController.default().targetedURL() else {
+            return
+        }
+        
+        let worker = ExtensionWorker(path: targetedUrl.path, fileName: fileName)
+        worker.run()
     }
 
+    
+    /*
+    func afficheCacheLesFichiersCaches() {
+        
+        
+            
+            if output == "FALSE" {
+                // print("Output = FALSE")
+                task.terminate()
+                let task1 = Process()
+                task1.launchPath     = "/usr/bin/defaults"
+                task1.arguments      = ["write", "com.apple.finder", "AppleShowAllFiles", "TRUE"]
+                let outputPipe      = Pipe()
+                let errorPipe       = Pipe()
+                task1.standardOutput = outputPipe
+                task1.standardError  = errorPipe
+                try task1.launch()
+                let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+                let errorData  = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                if let output = String(data: outputData, encoding: String.Encoding.utf8) {
+                    print(output)
+                }
+                
+            }
+            else {
+                print("Output = TRUE")
+                task.terminate()
+                let task1 = Process()
+                task1.launchPath     = "/usr/bin/defaults"
+                task1.arguments      = ["write", "com.apple.finder", "AppleShowAllFiles", "FALSE"]
+                let outputPipe      = Pipe()
+                let errorPipe       = Pipe()
+                task1.standardOutput = outputPipe
+                task1.standardError  = errorPipe
+                try task1.launch()
+                let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+                let errorData  = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                if let output = String(data: outputData, encoding: String.Encoding.utf8) {
+                    print(output)
+                }
+            }
+        }
+        
+        let task2 = Process()
+        task2.launchPath     = "/usr/bin/killall"
+        task2.arguments      = ["-KILL", "Finder"]
+        //        let outputPipe      = Pipe()
+        //        let errorPipe       = Pipe()
+        //        task2.standardOutput = outputPipe
+        //        task2.standardError  = errorPipe
+        try task2.launch()
+        //        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        //        let errorData  = errorPipe.fileHandleForReading.readDataToEndOfFile()
+        //        if let output = String(data: outputData, encoding: String.Encoding.utf8) {
+        //            print(output)
+        //        }
+        
+        
+        // let error = String(decoding: errorData, as: UTF8.self)
+        // let error = String(describing: errorData)
+        // let error = NSString(bytes: errorData, length: errorData.count, encoding: NSUTF8StringEncoding)
+        
+        if let error = String(data: errorData, encoding: String.Encoding.utf8) {
+            print(error)
+            
+        }
+
+    }*/
+    
 }
 
